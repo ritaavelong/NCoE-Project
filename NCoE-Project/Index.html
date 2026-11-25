@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>NCoE Project</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;font-family:'Segoe UI',Arial,sans-serif}
+body{background:#1a1625;min-height:100vh;display:flex;justify-content:center;padding:20px;color:white}
+.container{width:100%;max-width:800px}
+h1{text-align:center;margin:15px 0} h1 span{color:#ff5e8a}
+.card{background:white;color:#333;padding:22px;border-radius:14px;box-shadow:0 15px 30px rgba(0,0,0,.3);margin-bottom:16px}
+.hidden{display:none!important}
+input,select,textarea{width:100%;padding:11px;margin:6px 0 12px;border:1px solid #ddd;border-radius:8px;outline:none}
+button{padding:11px 16px;border:none;border-radius:8px;cursor:pointer;font-weight:bold}
+.btn-primary{background:#ff4d4d;color:white;width:100%}
+.btn-menu{background:#2d2a3d;color:white;padding:20px;font-size:18px;width:100%;margin-bottom:12px}
+.btn-menu:hover{background:#ff4d4d}
+.btn-small{background:#eee;padding:6px 10px;font-size:12px}
+.btn-danger{background:#ff4d4d;color:white;padding:6px 10px;font-size:12px}
+.topbar{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px}
+.badge{background:#ff5e8a;color:white;padding:4px 10px;border-radius:20px;font-size:12px}
+table{width:100%;border-collapse:collapse;margin-top:10px;font-size:14px}
+th,td{padding:9px;border-bottom:1px solid #eee;text-align:left}
+#chatBox{height:250px;overflow-y:auto;border:1px solid #eee;border-radius:8px;padding:10px;background:#f9f9f9;margin-bottom:10px}
+.msg{margin-bottom:8px;background:white;padding:8px 10px;border-radius:8px;border:1px solid #eee}
+.msg b{color:#ff4d4d}
+.flex{display:flex;gap:8px} .flex input{flex:1}
+.deadline{padding:10px;border-left:4px solid #ff4d4d;background:#fff5f5;border-radius:8px;margin-bottom:8px;display:flex;justify-content:space-between}
+small{color:#777}
+</style>
+</head>
+<body>
+<div class="container">
+<h1>NCoE <span>Project</span></h1>
+
+<!-- LOGIN -->
+<div id="loginPage" class="card">
+  <h2>Login Form</h2>
+  <p><small>Try: Admin / admin123 &nbsp;|&nbsp; User / user123</small></p>
+  <label>Username</label>
+  <input id="username" placeholder="Enter username">
+  <label>Password</label>
+  <input id="password" type="password" placeholder="Enter password">
+  <label>Role</label>
+  <select id="role"><option value="Admin">Admin</option><option value="User">User</option></select>
+  <button class="btn-primary" onclick="login()">LOGIN</button>
+  <p id="loginError" style="color:red;text-align:center;margin-top:8px"></p>
+</div>
+
+<!-- MAIN MENU -->
+<div id="menuPage" class="hidden">
+  <div class="topbar"><span>Welcome, <b id="welcomeName"></b> <span class="badge" id="welcomeRole"></span></span><button class="btn-small" onclick="logout()">Logout</button></div>
+  <div class="card"><h2>Main Menu</h2><p><small>Choose one:</small></p><br>
+    <button class="btn-menu" onclick="showPage('chatPage')">💬 LAN Chat</button>
+    <button class="btn-menu" onclick="showPage('recordsPage')">📁 NCoE Records</button>
+    <button class="btn-menu" onclick="showPage('deadlinePage')">📅 Manage Deadlines</button>
+  </div>
+</div>
+
+<!-- LAN CHAT -->
+<div id="chatPage" class="hidden card">
+  <button class="btn-small" onclick="showPage('menuPage')">← Back</button>
+  <h2>LAN Chat</h2><p><small>Works on same WiFi / same computer for demo. Messages save in browser.</small></p>
+  <div id="chatBox"></div>
+  <div class="flex"><input id="chatInput" placeholder="Type message..."><button style="background:#ff4d4d;color:white" onclick="sendChat()">Send</button></div>
+  <br><button class="btn-small" onclick="clearChat()">Clear Chat</button>
+</div>
+
+<!-- RECORDS -->
+<div id="recordsPage" class="hidden card">
+  <button class="btn-small" onclick="showPage('menuPage')">← Back</button>
+  <h2>NCoE Records</h2>
+  <input id="search" placeholder="Search name / course..." oninput="renderRecords()">
+  <label>Student Name</label><input id="recName" placeholder="e.g. John Kuri">
+  <label>Course</label><select id="recCourse"><option>ICT</option><option>Business</option><option>Education</option><option>Health</option></select>
+  <label>Year</label><input id="recYear" placeholder="e.g. 2026">
+  <button class="btn-primary" onclick="addRecord()">+ Add Record</button>
+  <table><thead><tr><th>Name</th><th>Course</th><th>Year</th><th>Action</th></tr></thead><tbody id="recordTable"></tbody></table>
+</div>
+
+<!-- DEADLINES -->
+<div id="deadlinePage" class="hidden card">
+  <button class="btn-small" onclick="showPage('menuPage')">← Back</button>
+  <h2>Manage Deadlines</h2>
+  <label>Task</label><input id="taskName" placeholder="e.g. Submit Assignment">
+  <label>Due Date</label><input id="taskDate" type="date">
+  <button class="btn-primary" onclick="addDeadline()">+ Add Deadline</button>
+  <div id="deadlineList" style="margin-top:14px"></div>
+</div>
+
+</div>
+
+<script>
+let currentUser = "";
+let records = JSON.parse(localStorage.getItem('ncoe_records')||'[]');
+let deadlines = JSON.parse(localStorage.getItem('ncoe_deadlines')||'[]');
+let chats = JSON.parse(localStorage.getItem('ncoe_chats')||'[]');
+
+function login(){
+  const u = document.getElementById('username').value.trim();
+  const p = document.getElementById('password').value.trim();
+  const r = document.getElementById('role').value;
+  // Demo logins
+  if((u==="Admin" && p==="admin123" && r==="Admin") || (u==="User" && p==="user123" && r==="User")){
+    currentUser = u;
+    document.getElementById('welcomeName').textContent = u;
+    document.getElementById('welcomeRole').textContent = r;
+    document.getElementById('loginPage').classList.add('hidden');
+    document.getElementById('menuPage').classList.remove('hidden');
+    renderAll();
+  } else {
+    document.getElementById('loginError').textContent = "Wrong username / password. Try Admin / admin123";
+  }
+}
+function logout(){ location.reload(); }
+function showPage(id){
+  ['menuPage','chatPage','recordsPage','deadlinePage'].forEach(p=>document.getElementById(p).classList.add('hidden'));
+  document.getElementById(id).classList.remove('hidden');
+  if(id==='menuPage') document.getElementById('menuPage').classList.remove('hidden');
+  renderAll();
+}
+function sendChat(){
+  const txt = document.getElementById('chatInput').value.trim();
+  if(!txt) return;
+  chats.push({user: currentUser, text: txt, time: new Date().toLocaleTimeString()});
+  localStorage.setItem('ncoe_chats', JSON.stringify(chats));
+  document.getElementById('chatInput').value=""; renderChat();
+}
+function renderChat(){
+  document.getElementById('chatBox').innerHTML = chats.map(c=>`<div class="msg"><b>${c.user}</b> <small>${c.time}</small><br>${c.text}</div>`).join('') || "<p><small>No messages yet.</small></p>";
+  document.getElementById('chatBox').scrollTop = 9999;
+}
+function clearChat(){ chats=[]; localStorage.setItem('ncoe_chats','[]'); renderChat(); }
+
+function addRecord(){
+  const name=document.getElementById('recName').value.trim();
+  const course=document.getElementById('recCourse').value;
+  const year=document.getElementById('recYear').value.trim();
+  if(!name||!year) return alert("Fill name and year");
+  records.push({name,course,year}); localStorage.setItem('ncoe_records',JSON.stringify(records));
+  document.getElementById('recName').value=""; document.getElementById('recYear').value=""; renderRecords();
+}
+function renderRecords(){
+  const q=document.getElementById('search').value.toLowerCase();
+  const filtered=records.filter(r=>r.name.toLowerCase().includes(q)||r.course.toLowerCase().includes(q));
+  document.getElementById('recordTable').innerHTML=filtered.map((r,i)=>`<tr><td>${r.name}</td><td>${r.course}</td><td>${r.year}</td><td><button class="btn-danger" onclick="delRecord(${i})">Delete</button></td></tr>`).join('') || "<tr><td colspan=4>No records</td></tr>";
+}
+function delRecord(i){ records.splice(i,1); localStorage.setItem('ncoe_records',JSON.stringify(records)); renderRecords(); }
+
+function addDeadline(){
+  const task=document.getElementById('taskName').value.trim();
+  const date=document.getElementById('taskDate').value;
+  if(!task||!date) return alert("Fill task and date");
+  deadlines.push({task,date}); localStorage.setItem('ncoe_deadlines',JSON.stringify(deadlines));
+  document.getElementById('taskName').value=""; renderDeadlines();
+}
+function renderDeadlines(){
+  document.getElementById('deadlineList').innerHTML=deadlines.map((d,i)=>`<div class="deadline"><div><b>${d.task}</b><br><small>Due: ${d.date}</small></div><button class="btn-danger" onclick="delDeadline(${i})">Done</button></div>`).join('') || "<p><small>No deadlines</small></p>";
+}
+function delDeadline(i){ deadlines.splice(i,1); localStorage.setItem('ncoe_deadlines',JSON.stringify(deadlines)); renderDeadlines(); }
+function renderAll(){ renderChat(); renderRecords(); renderDeadlines(); }
+renderAll();
+// Enter key for chat
+document.getElementById('chatInput').addEventListener('keypress', e=>{ if(e.key==='Enter') sendChat(); });
+</script>
+</body>
+</html>
